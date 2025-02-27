@@ -5,13 +5,16 @@
 # version: 1.0
 # author: Discourse Team
 # url: https://github.com/discourse/discourse-saml
-# transpile_js: true
 
 gem "macaddr", "1.0.0"
 gem "uuid", "2.3.7"
-gem "rexml", "3.2.6"
-gem "ruby-saml", "1.13.0"
-gem "omniauth-saml", "1.9.0"
+gem "ruby-saml", "1.17.0"
+
+if OmniAuth.const_defined?(:AuthenticityTokenProtection) # OmniAuth 2.0
+  gem "omniauth-saml", "2.2.1"
+else
+  gem "omniauth-saml", "1.10.5"
+end
 
 enabled_site_setting :saml_enabled if !GlobalSetting.try("saml_target_url")
 
@@ -101,6 +104,7 @@ after_initialize do
 end
 
 require_relative "lib/discourse_saml/saml_omniauth_strategy"
+require_relative "lib/discourse_saml/saml_replay_cache"
 require_relative "lib/saml_authenticator"
 
 # Allow GlobalSettings to override the translations

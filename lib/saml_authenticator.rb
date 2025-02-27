@@ -73,12 +73,14 @@ class SamlAuthenticator < ::Auth::ManagedAuthenticator
       request_method: (setting(:request_method)&.downcase == "post") ? "POST" : "GET",
       certificate: setting(:sp_certificate).presence,
       private_key: setting(:sp_private_key).presence,
+      idp_sso_service_binding: (setting(:request_method)&.downcase == "post") ? :post : :redirect,
       security: {
         authn_requests_signed: !!setting(:authn_requests_signed),
         want_assertions_signed: !!setting(:want_assertions_signed),
         logout_requests_signed: !!setting(:logout_requests_signed),
         logout_responses_signed: !!setting(:logout_responses_signed),
         signature_method: XMLSecurity::Document::RSA_SHA1,
+        digest_method: XMLSecurity::Document::SHA1,
       },
       idp_slo_session_destroy:
         proc do |env, session|
@@ -145,6 +147,7 @@ class SamlAuthenticator < ::Auth::ManagedAuthenticator
       sync_admin(user, attributes)
       sync_trust_level(user, attributes)
       sync_locale(user, attributes)
+      Group.refresh_automatic_groups!(:admins, :moderators, :staff)
     end
 
     result.overrides_username = setting(:omit_username)
@@ -175,6 +178,7 @@ class SamlAuthenticator < ::Auth::ManagedAuthenticator
     sync_trust_level(user, attributes)
     sync_custom_fields(user, attributes, info)
     sync_locale(user, attributes)
+    Group.refresh_automatic_groups!(:admins, :moderators, :staff)
   end
 
   def auto_create_account(result, uid)
@@ -202,7 +206,7 @@ class SamlAuthenticator < ::Auth::ManagedAuthenticator
   end
 
   def sync_groups(user, attributes, info)
-    return unless setting(:sync_groups).present?
+    return if setting(:sync_groups).blank?
 
     groups_fullsync = setting(:groups_fullsync)
     raw_group_list = attributes.multi(setting(:groups_attribute)) || []
@@ -352,7 +356,7 @@ class SamlAuthenticator < ::Auth::ManagedAuthenticator
   private
 
   def idp_cert_multi
-    return unless setting(:cert_multi).present?
+    return if setting(:cert_multi).blank?
 
     certificates = setting(:cert_multi).split("|")
     certificates.push(setting(:cert)) if setting(:cert).present?
